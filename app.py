@@ -109,37 +109,54 @@ def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'message': 'Web Scraping Chatbot API is running'})
 
-@app.route('/scrape', methods=['POST'])
+@app.route('/scrape', methods=['POST', 'OPTIONS'])
 def scrape():
     """Scrape content from a URL"""
-    data = request.get_json()
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
     
-    if not data or 'url' not in data:
-        return jsonify({'success': False, 'error': 'URL is required'}), 400
-    
-    url = data['url']
-    
-    # Validate URL
     try:
-        result = urlparse(url)
-        if not all([result.scheme, result.netloc]):
-            return jsonify({'success': False, 'error': 'Invalid URL format'}), 400
-    except:
-        return jsonify({'success': False, 'error': 'Invalid URL'}), 400
-    
-    # Scrape the website
-    result = scrape_website(url)
-    
-    if result['success']:
-        # Store scraped data
-        scraped_data[url] = result
-        return jsonify(result), 200
-    else:
-        return jsonify(result), 400
+        data = request.get_json()
+        print(f"Received scrape request: {data}")  # Debug logging
+        
+        if not data or 'url' not in data:
+            print("Error: No URL provided")
+            return jsonify({'success': False, 'error': 'URL is required'}), 400
+        
+        url = data['url']
+        print(f"Scraping URL: {url}")
+        
+        # Validate URL
+        try:
+            result = urlparse(url)
+            if not all([result.scheme, result.netloc]):
+                return jsonify({'success': False, 'error': 'Invalid URL format'}), 400
+        except Exception as e:
+            print(f"URL validation error: {e}")
+            return jsonify({'success': False, 'error': 'Invalid URL'}), 400
+        
+        # Scrape the website
+        result = scrape_website(url)
+        print(f"Scrape result: {result.get('success', False)}")
+        
+        if result['success']:
+            # Store scraped data
+            scraped_data[url] = result
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+    except Exception as e:
+        print(f"Unexpected error in scrape endpoint: {e}")
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
-@app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
     """Handle chat messages and respond based on scraped content"""
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     data = request.get_json()
     
     if not data or 'message' not in data:
